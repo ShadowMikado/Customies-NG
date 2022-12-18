@@ -13,6 +13,8 @@ use Threaded;
 final class AsyncRegisterBlocksTask extends AsyncTask {
 
 	private Threaded $blockFuncs;
+	private Threaded $objectToState;
+	private Threaded $stateToObject;
 
 	/**
 	 * @param string $cachePath
@@ -21,8 +23,12 @@ final class AsyncRegisterBlocksTask extends AsyncTask {
 	 */
 	public function __construct(private string $cachePath, array $blockFuncs) {
 		$this->blockFuncs = new Threaded();
-		foreach($blockFuncs as $identifier => $blockFunc){
+		$this->objectToState = new Threaded();
+		$this->stateToObject = new Threaded();
+		foreach($blockFuncs as $identifier => [$blockFunc, $objectToState, $stateToObject]){
 			$this->blockFuncs[$identifier] = $blockFunc;
+			$this->objectToState[$identifier] = $objectToState;
+			$this->stateToObject[$identifier] = $stateToObject;
 		}
 	}
 
@@ -31,8 +37,7 @@ final class AsyncRegisterBlocksTask extends AsyncTask {
 		foreach($this->blockFuncs as $identifier => $blockFunc){
 			// We do not care about the model or creative inventory data in other threads since it is unused outside of
 			// the main thread.
-			CustomiesBlockFactory::getInstance()->registerBlock($blockFunc, $identifier);
+			CustomiesBlockFactory::getInstance()->registerBlock($blockFunc, $identifier, objectToState: $this->objectToState[$identifier], stateToObject: $this->stateToObject[$identifier]);
 		}
-		CustomiesBlockFactory::getInstance()->registerCustomRuntimeMappings();
 	}
 }

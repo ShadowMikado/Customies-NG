@@ -15,8 +15,8 @@ use function igbinary_unserialize;
 final class Cache {
 	use SingletonTrait;
 
-	private const FIRST_BLOCK_ID = 1000;
-	private const FIRST_ITEM_ID = 950;
+	private const FIRST_BLOCK_ID = 15500;
+	private const FIRST_ITEM_ID = 25500;
 
 	/**
 	 * @var array<string, int>
