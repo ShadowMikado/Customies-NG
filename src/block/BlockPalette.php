@@ -23,11 +23,11 @@ final class BlockPalette {
 	/** @var BlockStateDictionaryEntry[] */
 	private array $customStates = [];
 
-    /** @var BlockStateDictionary[] */
+	/** @var BlockStateDictionary[] */
 	private array $dictionaries;
-    /** @var array|ReflectionProperty[] */
+	/** @var array|ReflectionProperty[] */
 	private array $bedrockKnownStates;
-    /** @var array|ReflectionProperty[] */
+	/** @var array|ReflectionProperty[] */
 	private array $lookupCache;
 
 	public function __construct() {
@@ -70,7 +70,7 @@ final class BlockPalette {
 		if($state->getCompoundTag("states") === null) {
 			throw new RuntimeException("Block state must contain a CompoundTag called 'states'");
 		}
-        $entry = new BlockStateDictionaryEntry(BlockStateData::fromNbt($state), $meta);
+		$entry = new BlockStateDictionaryEntry(BlockStateData::fromNbt($state), $meta);
 		$this->sortWith($entry);
 		$this->customStates[] = $entry;
 	}

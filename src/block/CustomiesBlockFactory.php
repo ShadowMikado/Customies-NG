@@ -39,7 +39,7 @@ final class CustomiesBlockFactory {
 	/** @var BlockPaletteEntry[] */
 	private array $blockPaletteEntries = [];
 	/** @var array<string, int> */
-    private array $stringIdToTypedIds = [];
+	private array $stringIdToTypedIds = [];
 
 	/**
 	 * Adds a worker initialize hook to the async pool to sync the BlockFactory for every thread worker that is created.
@@ -55,7 +55,7 @@ final class CustomiesBlockFactory {
 	}
 
 	/**
-	 * Get a custom block from its identifier. An exception will be thrown if the block is not registered.
+	 * Get a custom block from its identifier.
 	 */
 	public function get(string $identifier): Block {
 		return BlockFactory::getInstance()->fromTypeId($this->stringIdToTypedIds[$identifier]);
@@ -85,7 +85,7 @@ final class CustomiesBlockFactory {
 		}
 		BlockFactory::getInstance()->register($block);
 		CustomiesItemFactory::getInstance()->registerBlockItem($identifier, $block);
-        $this->stringIdToTypedIds[$identifier] = $id;
+		$this->stringIdToTypedIds[$identifier] = $id;
 
 		$propertiesTag = CompoundTag::create();
 		$components = CompoundTag::create()
@@ -164,9 +164,9 @@ final class CustomiesBlockFactory {
 	}
 
 	/**
-	 * Returns the next available custom block id, an exception will be thrown if the block factory is full.
+	 * Returns the next available custom block id.
 	 */
 	private function getNextAvailableId(string $identifier): int {
-        return Cache::getInstance()->getNextAvailableBlockID($identifier);
+		return Cache::getInstance()->getNextAvailableBlockID($identifier);
 	}
 }
