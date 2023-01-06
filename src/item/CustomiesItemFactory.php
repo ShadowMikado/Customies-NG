@@ -6,6 +6,7 @@ namespace customiesdevs\customies\item;
 use customiesdevs\customies\util\Cache;
 use InvalidArgumentException;
 use pocketmine\block\Block;
+use pocketmine\data\bedrock\item\SavedItemData;
 use pocketmine\inventory\CreativeInventory;
 use pocketmine\item\Item;
 use pocketmine\item\ItemIdentifier;
@@ -16,6 +17,7 @@ use pocketmine\network\mcpe\protocol\types\ItemComponentPacketEntry;
 use pocketmine\network\mcpe\protocol\types\ItemTypeEntry;
 use pocketmine\utils\SingletonTrait;
 use pocketmine\utils\Utils;
+use pocketmine\world\format\io\GlobalItemDataHandlers;
 use ReflectionClass;
 use RuntimeException;
 use function array_values;
@@ -31,16 +33,17 @@ final class CustomiesItemFactory {
 	 * @var ItemComponentPacketEntry[]
 	 */
 	private array $itemComponentEntries = [];
+	/**
+	 * @var Item[]
+	 */
+	private array $customItems = [];
+	private int $nextBlockItemNetworkId = -745;
 
 	/**
 	 * Get a custom item from its identifier. An exception will be thrown if the item is not registered.
 	 */
 	public function get(string $identifier, int $amount = 1): Item {
-		$id = ($this->itemTableEntries[$identifier] ?? null)?->getNumericId();
-		if($id === null) {
-			throw new InvalidArgumentException("Custom item " . $identifier . " is not registered");
-		}
-		return ItemFactory::getInstance()->get($id, 0, $amount);
+		return $this->customItems[$identifier]?->setCount($amount) ?? throw new InvalidArgumentException("Custom item " . $identifier . " is not registered");
 	}
 
 	/**
@@ -70,23 +73,27 @@ final class CustomiesItemFactory {
 		}
 
 		/** @var Item $item */
-		$item = new $className(new ItemIdentifier(Cache::getInstance()->getNextAvailableItemID($identifier), 0), $name);
+		$item = new $className(new ItemIdentifier(Cache::getInstance()->getNextAvailableItemID($identifier)), $name);
 
-		if(ItemFactory::getInstance()->isRegistered($item->getId())) {
-			throw new RuntimeException("Item with ID " . $item->getId() . " is already registered");
+		if(isset($this->customItems[$identifier])) {
+			throw new RuntimeException("Item with ID $identifier is already registered");
 		}
-		$this->registerCustomItemMapping($item->getId());
-		ItemFactory::getInstance()->register($item);
+		$networkId = $item->getTypeId() - 24550;
+		$this->registerCustomItemMapping($identifier, $networkId);
+		GlobalItemDataHandlers::getSerializer()->map($item, fn() => new SavedItemData($identifier));
+		GlobalItemDataHandlers::getDeserializer()->map($identifier, fn() => clone $item);
 
 		if(($componentBased = $item instanceof ItemComponents)) {
 			$componentsTag = $item->getComponents();
-			$componentsTag->setInt("id", $item->getId());
+			$componentsTag->setInt("id", $networkId);
 			$componentsTag->setString("name", $identifier);
 			$this->itemComponentEntries[$identifier] = new ItemComponentPacketEntry($identifier, new CacheableNbt($componentsTag));
 		}
 
-		$this->itemTableEntries[$identifier] = new ItemTypeEntry($identifier, $item->getId(), $componentBased);
+		$this->itemTableEntries[$identifier] = new ItemTypeEntry($identifier, $networkId, $componentBased);
 		CreativeInventory::getInstance()->add($item);
+		StringToItemParser::getInstance()->register($identifier, fn() => clone $item);
+		$this->customItems[$identifier] = $item;
 	}
 
 	/**
@@ -115,7 +122,7 @@ final class CustomiesItemFactory {
 	 * correlates to its block ID.
 	 */
 	public function registerBlockItem(string $identifier, Block $block): void {
-		$itemId = (255 - ($block->getTypeId() - 14500));
+		$itemId = $this->nextBlockItemNetworkId--;
 		$this->registerCustomItemMapping($identifier, $itemId);
 		$this->itemTableEntries[] = new ItemTypeEntry($identifier, $itemId, false);
 		StringToItemParser::getInstance()->registerBlock($identifier, fn() => $block);

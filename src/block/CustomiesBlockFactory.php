@@ -27,6 +27,7 @@ use pocketmine\utils\SingletonTrait;
 use pocketmine\world\format\io\GlobalBlockStateHandlers;
 use function array_map;
 use function array_reverse;
+use function get_class;
 
 final class CustomiesBlockFactory {
 	use SingletonTrait;
@@ -55,10 +56,10 @@ final class CustomiesBlockFactory {
 	}
 
 	/**
-	 * Get a custom block from its identifier.
+	 * Get a custom block from its identifier. An exception will be thrown if the block is not registered.
 	 */
 	public function get(string $identifier): Block {
-		return BlockFactory::getInstance()->fromTypeId($this->stringIdToTypedIds[$identifier]);
+		return BlockFactory::getInstance()->fromTypeId($this->stringIdToTypedIds[$identifier] ?? throw new InvalidArgumentException("Custom block " . $identifier . " is not registered"));
 	}
 
 	/**
@@ -136,8 +137,8 @@ final class CustomiesBlockFactory {
 					->setTag("states", $states);
 				BlockPalette::getInstance()->insertState($blockState, $meta);
 			}
-			GlobalBlockStateHandlers::getSerializer()->map($block, $objectToState ?? throw new InvalidArgumentException());
-			GlobalBlockStateHandlers::getDeserializer()->map($identifier, $stateToObject ?? throw new InvalidArgumentException());
+			GlobalBlockStateHandlers::getSerializer()->map($block, $objectToState ?? throw new InvalidArgumentException("Serializer for " . get_class($block) . " cannot be null"));
+			GlobalBlockStateHandlers::getDeserializer()->map($identifier, $stateToObject ?? throw new InvalidArgumentException("Deserializer for " . get_class($block) . " cannot be null"));
 		} else {
 			// If a block does not contain any permutations we can just insert the one state.
 			$blockState = CompoundTag::create()
