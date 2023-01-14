@@ -21,6 +21,7 @@ use pocketmine\world\format\io\GlobalItemDataHandlers;
 use ReflectionClass;
 use RuntimeException;
 use function array_values;
+use function method_exists;
 
 final class CustomiesItemFactory {
 	use SingletonTrait;
@@ -100,7 +101,7 @@ final class CustomiesItemFactory {
 	 * Registers a custom item ID to the required mappings in the ItemTranslator instance.
 	 */
 	private function registerCustomItemMapping(string $stringId, int $id): void {
-		foreach (GlobalItemTypeDictionary::getInstance()->getDictionaries() as $dictionary) {
+		foreach (method_exists(GlobalItemTypeDictionary::getInstance(), "getDictionaries") ? GlobalItemTypeDictionary::getInstance()->getDictionaries() : [GlobalItemTypeDictionary::getInstance()->getDictionary()] as $dictionary) {
 			$reflection = new ReflectionClass($dictionary);
 
 			$reflectionProperty = $reflection->getProperty("intToStringIdMap");

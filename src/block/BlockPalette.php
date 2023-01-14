@@ -14,6 +14,8 @@ use pocketmine\utils\SingletonTrait;
 use ReflectionProperty;
 use RuntimeException;
 use function array_map;
+use function defined;
+use function method_exists;
 
 final class BlockPalette {
 	use SingletonTrait;
@@ -32,8 +34,8 @@ final class BlockPalette {
 
 	public function __construct() {
 		$instance = RuntimeBlockMapping::getInstance();
-		foreach(ProtocolInfo::ACCEPTED_PROTOCOL as $protocolId){
-			$mappingProtocol = RuntimeBlockMapping::getMappingProtocol($protocolId);
+		foreach(defined(ProtocolInfo::class . "::ACCEPTED_PROTOCOL") ? ProtocolInfo::ACCEPTED_PROTOCOL : [ProtocolInfo::CURRENT_PROTOCOL] as $protocolId){
+			$mappingProtocol = method_exists(RuntimeBlockMapping::class, "getMappingProtocol") ? RuntimeBlockMapping::getMappingProtocol($protocolId) : $protocolId;
 			if(isset($this->states[$mappingProtocol])){
 				continue;
 			}
