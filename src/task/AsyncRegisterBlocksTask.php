@@ -8,13 +8,12 @@ use customiesdevs\customies\block\CustomiesBlockFactory;
 use customiesdevs\customies\util\Cache;
 use pocketmine\block\Block;
 use pocketmine\scheduler\AsyncTask;
-use Threaded;
 
 final class AsyncRegisterBlocksTask extends AsyncTask {
 
-	private Threaded $blockFuncs;
-	private Threaded $objectToState;
-	private Threaded $stateToObject;
+	private \ThreadedArray $blockFuncs;
+	private \ThreadedArray $objectToState;
+	private \ThreadedArray $stateToObject;
 
 	/**
 	 * @param string $cachePath
@@ -22,9 +21,9 @@ final class AsyncRegisterBlocksTask extends AsyncTask {
 	 * @phpstan-param array<string, Closure(int): Block> $blockFuncs
 	 */
 	public function __construct(private string $cachePath, array $blockFuncs) {
-		$this->blockFuncs = new Threaded();
-		$this->objectToState = new Threaded();
-		$this->stateToObject = new Threaded();
+		$this->blockFuncs = new \ThreadedArray();
+		$this->objectToState = new \ThreadedArray();
+		$this->stateToObject = new \ThreadedArray();
 		foreach($blockFuncs as $identifier => [$blockFunc, $objectToState, $stateToObject]){
 			$this->blockFuncs[$identifier] = $blockFunc;
 			$this->objectToState[$identifier] = $objectToState;
