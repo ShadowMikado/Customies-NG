@@ -14,7 +14,7 @@ use customiesdevs\customies\util\Cache;
 use customiesdevs\customies\util\NBT;
 use InvalidArgumentException;
 use pocketmine\block\Block;
-use pocketmine\block\BlockFactory;
+use pocketmine\block\RuntimeBlockStateRegistry;
 use pocketmine\data\bedrock\block\convert\BlockStateReader;
 use pocketmine\data\bedrock\block\convert\BlockStateWriter;
 use pocketmine\inventory\CreativeInventory;
@@ -59,7 +59,7 @@ final class CustomiesBlockFactory {
 	 * Get a custom block from its identifier. An exception will be thrown if the block is not registered.
 	 */
 	public function get(string $identifier): Block {
-		return BlockFactory::getInstance()->fromTypeId($this->stringIdToTypedIds[$identifier] ?? throw new InvalidArgumentException("Custom block " . $identifier . " is not registered"));
+		return RuntimeBlockStateRegistry::getInstance()->fromTypeId($this->stringIdToTypedIds[$identifier] ?? throw new InvalidArgumentException("Custom block " . $identifier . " is not registered"));
 	}
 
 	/**
@@ -81,10 +81,10 @@ final class CustomiesBlockFactory {
 			throw new InvalidArgumentException("Class returned from closure is not a Block");
 		}
 
-		if(BlockFactory::getInstance()->isRegistered($id)) {
+		if(RuntimeBlockStateRegistry::getInstance()->isRegistered($id)) {
 			throw new InvalidArgumentException("Block with ID " . $id . " is already registered");
 		}
-		BlockFactory::getInstance()->register($block);
+		RuntimeBlockStateRegistry::getInstance()->register($block);
 		CustomiesItemFactory::getInstance()->registerBlockItem($identifier, $block);
 		$this->stringIdToTypedIds[$identifier] = $id;
 
