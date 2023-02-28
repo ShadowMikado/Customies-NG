@@ -44,7 +44,8 @@ final class CustomiesItemFactory {
 	 * Get a custom item from its identifier. An exception will be thrown if the item is not registered.
 	 */
 	public function get(string $identifier, int $amount = 1): Item {
-		return $this->customItems[$identifier]?->setCount($amount) ?? throw new InvalidArgumentException("Custom item " . $identifier . " is not registered");
+		$item = $this->customItems[$identifier] ?? throw new InvalidArgumentException("Custom item " . $identifier . " is not registered");
+		return (clone $item)->setCount($amount);
 	}
 
 	/**
