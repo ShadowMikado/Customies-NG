@@ -12,6 +12,7 @@ use pocketmine\item\Item;
 use pocketmine\item\ItemIdentifier;
 use pocketmine\item\StringToItemParser;
 use pocketmine\network\mcpe\convert\GlobalItemTypeDictionary;
+use pocketmine\network\mcpe\protocol\serializer\ItemTypeDictionary;
 use pocketmine\network\mcpe\protocol\types\CacheableNbt;
 use pocketmine\network\mcpe\protocol\types\ItemComponentPacketEntry;
 use pocketmine\network\mcpe\protocol\types\ItemTypeEntry;
@@ -102,21 +103,29 @@ final class CustomiesItemFactory {
 	 * Registers a custom item ID to the required mappings in the ItemTranslator instance.
 	 */
 	private function registerCustomItemMapping(string $stringId, int $id): void {
-		foreach (method_exists(GlobalItemTypeDictionary::getInstance(), "getDictionaries") ? GlobalItemTypeDictionary::getInstance()->getDictionaries() : [GlobalItemTypeDictionary::getInstance()->getDictionary()] as $dictionary) {
-			$reflection = new ReflectionClass($dictionary);
-
-			$reflectionProperty = $reflection->getProperty("intToStringIdMap");
-			$reflectionProperty->setAccessible(true);
-			/** @var string[] $value */
-			$value = $reflectionProperty->getValue($dictionary);
-			$reflectionProperty->setValue($dictionary, $value + [$id => $stringId]);
-
-			$reflectionProperty = $reflection->getProperty("stringToIntMap");
-			$reflectionProperty->setAccessible(true);
-			/** @var int[] $value */
-			$value = $reflectionProperty->getValue($dictionary);
-			$reflectionProperty->setValue($dictionary, $value + [$stringId => $id]);
+		if(method_exists(GlobalItemTypeDictionary::class, "convertProtocol")){
+			foreach(GlobalItemTypeDictionary::getAll(true) as $globalItemTypeDictionary){
+				$this->registerCustomItemMappingToDictionary($globalItemTypeDictionary->getDictionary(), $stringId, $id);
+			}
+		}else{
+			$this->registerCustomItemMappingToDictionary(GlobalItemTypeDictionary::getInstance()->getDictionary(), $stringId, $id);
 		}
+	}
+
+	private function registerCustomItemMappingToDictionary(ItemTypeDictionary $dictionary, string $stringId, int $id): void {
+		$reflection = new ReflectionClass($dictionary);
+
+		$reflectionProperty = $reflection->getProperty("intToStringIdMap");
+		$reflectionProperty->setAccessible(true);
+		/** @var string[] $value */
+		$value = $reflectionProperty->getValue($dictionary);
+		$reflectionProperty->setValue($dictionary, $value + [$id => $stringId]);
+
+		$reflectionProperty = $reflection->getProperty("stringToIntMap");
+		$reflectionProperty->setAccessible(true);
+		/** @var int[] $value */
+		$value = $reflectionProperty->getValue($dictionary);
+		$reflectionProperty->setValue($dictionary, $value + [$stringId => $id]);
 	}
 
 	/**

@@ -33,13 +33,13 @@ final class BlockPalette {
 	private array $lookupCache;
 
 	public function __construct() {
-		$instance = RuntimeBlockMapping::getInstance();
 		foreach(defined(ProtocolInfo::class . "::ACCEPTED_PROTOCOL") ? ProtocolInfo::ACCEPTED_PROTOCOL : [ProtocolInfo::CURRENT_PROTOCOL] as $protocolId){
-			$mappingProtocol = method_exists(RuntimeBlockMapping::class, "getMappingProtocol") ? RuntimeBlockMapping::getMappingProtocol($protocolId) : $protocolId;
+			$mappingProtocol = method_exists(RuntimeBlockMapping::class, "convertProtocol") ? RuntimeBlockMapping::convertProtocol($protocolId) : $protocolId;
 			if(isset($this->states[$mappingProtocol])){
 				continue;
 			}
-			$this->dictionaries[$mappingProtocol] = $dictionary = $instance->getBlockStateDictionary($mappingProtocol);
+			$instance = RuntimeBlockMapping::getInstance($mappingProtocol);
+			$this->dictionaries[$mappingProtocol] = $dictionary = $instance->getBlockStateDictionary();
 			$this->states[$mappingProtocol] = $dictionary->getStates();
 			$this->bedrockKnownStates[$mappingProtocol] = $bedrockKnownStates = new ReflectionProperty($dictionary, "states");
 			$bedrockKnownStates->setAccessible(true);
