@@ -15,17 +15,14 @@ use pocketmine\network\mcpe\protocol\types\BlockPaletteEntry;
 use pocketmine\network\mcpe\protocol\types\Experiments;
 use pocketmine\network\mcpe\protocol\types\ItemTypeEntry;
 use function array_merge;
+use function count;
 
 final class CustomiesListener implements Listener {
 
 	private ?ItemComponentPacket $cachedItemComponentPacket = null;
-	/**
-	 * @var ItemTypeEntry[]
-	 */
+	/** @var ItemTypeEntry[] */
 	private array $cachedItemTable = [];
-	/**
-	 * @var BlockPaletteEntry[]
-	 */
+	/** @var BlockPaletteEntry[] */
 	private array $cachedBlockPalette = [];
 	private Experiments $experiments;
 
@@ -59,7 +56,7 @@ final class CustomiesListener implements Listener {
 				$packet->levelSettings->experiments = $this->experiments;
 				$packet->itemTable = array_merge($packet->itemTable, $this->cachedItemTable);
 				$packet->blockPalette = $this->cachedBlockPalette;
-			} else if($packet instanceof ResourcePackStackPacket) {
+			} elseif($packet instanceof ResourcePackStackPacket) {
 				$packet->experiments = $this->experiments;
 			}
 		}

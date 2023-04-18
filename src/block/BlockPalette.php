@@ -13,9 +13,12 @@ use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use pocketmine\utils\SingletonTrait;
 use ReflectionProperty;
 use RuntimeException;
+use function array_keys;
 use function array_map;
-use function defined;
+use function hash;
 use function method_exists;
+use function strcmp;
+use function usort;
 
 final class BlockPalette {
 	use SingletonTrait;
@@ -27,23 +30,21 @@ final class BlockPalette {
 
 	/** @var BlockStateDictionary[] */
 	private array $dictionaries;
-	/** @var array|ReflectionProperty[] */
+	/** @var ReflectionProperty[] */
 	private array $bedrockKnownStates;
-	/** @var array|ReflectionProperty[] */
+	/** @var ReflectionProperty[] */
 	private array $lookupCache;
 
 	public function __construct() {
-		foreach(defined(ProtocolInfo::class . "::ACCEPTED_PROTOCOL") ? ProtocolInfo::ACCEPTED_PROTOCOL : [ProtocolInfo::CURRENT_PROTOCOL] as $protocolId){
-			$mappingProtocol = method_exists(RuntimeBlockMapping::class, "convertProtocol") ? RuntimeBlockMapping::convertProtocol($protocolId) : $protocolId;
-			if(isset($this->states[$mappingProtocol])){
+		foreach(method_exists(RuntimeBlockMapping::class, "getAll") ? RuntimeBlockMapping::getAll(true) : [ProtocolInfo::CURRENT_PROTOCOL => RuntimeBlockMapping::getInstance()] as $protocolId => $instance){
+			if(isset($this->states[$protocolId])){
 				continue;
 			}
-			$instance = RuntimeBlockMapping::getInstance($mappingProtocol);
-			$this->dictionaries[$mappingProtocol] = $dictionary = $instance->getBlockStateDictionary();
-			$this->states[$mappingProtocol] = $dictionary->getStates();
-			$this->bedrockKnownStates[$mappingProtocol] = $bedrockKnownStates = new ReflectionProperty($dictionary, "states");
+			$this->dictionaries[$protocolId] = $dictionary = $instance->getBlockStateDictionary();
+			$this->states[$protocolId] = $dictionary->getStates();
+			$this->bedrockKnownStates[$protocolId] = $bedrockKnownStates = new ReflectionProperty($dictionary, "states");
 			$bedrockKnownStates->setAccessible(true);
-			$this->lookupCache[$mappingProtocol] = $lookupCache = new ReflectionProperty($dictionary, "stateDataToStateIdLookupCache");
+			$this->lookupCache[$protocolId] = $lookupCache = new ReflectionProperty($dictionary, "stateDataToStateIdLookupCache");
 			$lookupCache->setAccessible(true);
 		}
 	}
@@ -72,8 +73,7 @@ final class BlockPalette {
 		if($state->getCompoundTag("states") === null) {
 			throw new RuntimeException("Block state must contain a CompoundTag called 'states'");
 		}
-		$entry = new BlockStateDictionaryEntry(BlockStateData::fromNbt($state), $meta);
-		$this->sortWith($entry);
+		$this->sortWith($entry = new BlockStateDictionaryEntry(BlockStateData::fromNbt($state), $meta));
 		$this->customStates[] = $entry;
 	}
 

@@ -10,10 +10,10 @@ use customiesdevs\customies\block\permutations\Permutations;
 use customiesdevs\customies\item\CreativeInventoryInfo;
 use customiesdevs\customies\item\CustomiesItemFactory;
 use customiesdevs\customies\task\AsyncRegisterBlocksTask;
-use customiesdevs\customies\util\Cache;
 use customiesdevs\customies\util\NBT;
 use InvalidArgumentException;
 use pocketmine\block\Block;
+use pocketmine\block\BlockTypeIds;
 use pocketmine\block\RuntimeBlockStateRegistry;
 use pocketmine\data\bedrock\block\convert\BlockStateReader;
 use pocketmine\data\bedrock\block\convert\BlockStateWriter;
@@ -47,11 +47,11 @@ final class CustomiesBlockFactory {
 	 * It is especially important for the workers that deal with chunk encoding, as using the wrong runtime ID mappings
 	 * can result in massive issues with almost every block showing as the wrong thing and causing lag to clients.
 	 */
-	public function addWorkerInitHook(string $cachePath): void {
+	public function addWorkerInitHook(): void {
 		$server = Server::getInstance();
 		$blocks = $this->blockFuncs;
-		$server->getAsyncPool()->addWorkerStartHook(static function (int $worker) use ($cachePath, $server, $blocks): void {
-			$server->getAsyncPool()->submitTaskToWorker(new AsyncRegisterBlocksTask($cachePath, $blocks), $worker);
+		$server->getAsyncPool()->addWorkerStartHook(static function (int $worker) use ($server, $blocks): void {
+			$server->getAsyncPool()->submitTaskToWorker(new AsyncRegisterBlocksTask($blocks), $worker);
 		});
 	}
 
@@ -59,7 +59,10 @@ final class CustomiesBlockFactory {
 	 * Get a custom block from its identifier. An exception will be thrown if the block is not registered.
 	 */
 	public function get(string $identifier): Block {
-		return RuntimeBlockStateRegistry::getInstance()->fromTypeId($this->stringIdToTypedIds[$identifier] ?? throw new InvalidArgumentException("Custom block " . $identifier . " is not registered"));
+		return RuntimeBlockStateRegistry::getInstance()->fromTypeId(
+			$this->stringIdToTypedIds[$identifier] ??
+			throw new InvalidArgumentException("Custom block " . $identifier . " is not registered")
+		);
 	}
 
 	/**
@@ -75,7 +78,7 @@ final class CustomiesBlockFactory {
 	 * @phpstan-param (Closure(int): Block) $blockFunc
 	 */
 	public function registerBlock(Closure $blockFunc, string $identifier, ?Model $model = null, ?CreativeInventoryInfo $creativeInfo = null, ?Closure $objectToState = null, ?Closure $stateToObject = null): void {
-		$id = $this->getNextAvailableId($identifier);
+		$id = BlockTypeIds::newId();
 		$block = $blockFunc($id);
 		if(!$block instanceof Block) {
 			throw new InvalidArgumentException("Class returned from closure is not a Block");
@@ -122,8 +125,9 @@ final class CustomiesBlockFactory {
 			// The 'minecraft:on_player_placing' component is required for the client to predict block placement, making
 			// it a smoother experience for the end-user.
 			$components->setTag("minecraft:on_player_placing", CompoundTag::create());
-			$propertiesTag->setTag("permutations", new ListTag($permutations));
-			$propertiesTag->setTag("properties", new ListTag(array_reverse($blockProperties))); // fix client-side order
+			$propertiesTag
+				->setTag("permutations", new ListTag($permutations))
+				->setTag("properties", new ListTag(array_reverse($blockProperties))); // fix client-side order
 
 			foreach(Permutations::getCartesianProduct($blockPropertyValues) as $meta => $permutations){
 				// We need to insert states for every possible permutation to allow for all blocks to be used and to
@@ -153,21 +157,19 @@ final class CustomiesBlockFactory {
 		$components->setTag("minecraft:creative_category", CompoundTag::create()
 			->setString("category", $creativeInfo->getCategory())
 			->setString("group", $creativeInfo->getGroup()));
-		$propertiesTag->setTag("components", $components);
-		$propertiesTag->setTag("menu_category", CompoundTag::create()
-			->setString("category", $creativeInfo?->getCategory() ?? "")
-			->setString("group", $creativeInfo?->getGroup() ?? ""));
-		$propertiesTag->setInt("molangVersion", 1);
+		$propertiesTag
+			->setTag("components",
+				$components->setTag("minecraft:creative_category", CompoundTag::create()
+					->setString("category", $creativeInfo->getCategory())
+					->setString("group", $creativeInfo->getGroup())))
+			->setTag("menu_category", CompoundTag::create()
+				->setString("category", $creativeInfo->getCategory() ?? "")
+				->setString("group", $creativeInfo->getGroup() ?? ""))
+			->setInt("molangVersion", 1);
+
 		CreativeInventory::getInstance()->add($block->asItem());
 
 		$this->blockPaletteEntries[] = new BlockPaletteEntry($identifier, new CacheableNbt($propertiesTag));
 		$this->blockFuncs[$identifier] = [$blockFunc, $objectToState, $stateToObject];
-	}
-
-	/**
-	 * Returns the next available custom block id.
-	 */
-	private function getNextAvailableId(string $identifier): int {
-		return Cache::getInstance()->getNextAvailableBlockID($identifier);
 	}
 }
