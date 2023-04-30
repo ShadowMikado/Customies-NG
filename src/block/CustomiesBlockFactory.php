@@ -10,10 +10,10 @@ use customiesdevs\customies\block\permutations\Permutations;
 use customiesdevs\customies\item\CreativeInventoryInfo;
 use customiesdevs\customies\item\CustomiesItemFactory;
 use customiesdevs\customies\task\AsyncRegisterBlocksTask;
+use customiesdevs\customies\util\Cache;
 use customiesdevs\customies\util\NBT;
 use InvalidArgumentException;
 use pocketmine\block\Block;
-use pocketmine\block\BlockTypeIds;
 use pocketmine\block\RuntimeBlockStateRegistry;
 use pocketmine\data\bedrock\block\convert\BlockStateReader;
 use pocketmine\data\bedrock\block\convert\BlockStateWriter;
@@ -39,19 +39,19 @@ final class CustomiesBlockFactory {
 	private array $blockFuncs = [];
 	/** @var BlockPaletteEntry[] */
 	private array $blockPaletteEntries = [];
-	/** @var array<string, int> */
-	private array $stringIdToTypedIds = [];
+	/** @var array<string, Block> */
+	private array $customBlocks = [];
 
 	/**
 	 * Adds a worker initialize hook to the async pool to sync the BlockFactory for every thread worker that is created.
 	 * It is especially important for the workers that deal with chunk encoding, as using the wrong runtime ID mappings
 	 * can result in massive issues with almost every block showing as the wrong thing and causing lag to clients.
 	 */
-	public function addWorkerInitHook(): void {
+	public function addWorkerInitHook(string $cachePath): void {
 		$server = Server::getInstance();
 		$blocks = $this->blockFuncs;
-		$server->getAsyncPool()->addWorkerStartHook(static function (int $worker) use ($server, $blocks): void {
-			$server->getAsyncPool()->submitTaskToWorker(new AsyncRegisterBlocksTask($blocks), $worker);
+		$server->getAsyncPool()->addWorkerStartHook(static function (int $worker) use ($cachePath, $server, $blocks): void {
+			$server->getAsyncPool()->submitTaskToWorker(new AsyncRegisterBlocksTask($cachePath, $blocks), $worker);
 		});
 	}
 
@@ -59,8 +59,8 @@ final class CustomiesBlockFactory {
 	 * Get a custom block from its identifier. An exception will be thrown if the block is not registered.
 	 */
 	public function get(string $identifier): Block {
-		return RuntimeBlockStateRegistry::getInstance()->fromTypeId(
-			$this->stringIdToTypedIds[$identifier] ??
+		return clone (
+			$this->customBlocks[$identifier] ??
 			throw new InvalidArgumentException("Custom block " . $identifier . " is not registered")
 		);
 	}
@@ -78,18 +78,15 @@ final class CustomiesBlockFactory {
 	 * @phpstan-param (Closure(int): Block) $blockFunc
 	 */
 	public function registerBlock(Closure $blockFunc, string $identifier, ?Model $model = null, ?CreativeInventoryInfo $creativeInfo = null, ?Closure $objectToState = null, ?Closure $stateToObject = null): void {
-		$id = BlockTypeIds::newId();
+		$id = $this->getNextAvailableId($identifier);
 		$block = $blockFunc($id);
 		if(!$block instanceof Block) {
 			throw new InvalidArgumentException("Class returned from closure is not a Block");
 		}
 
-		if(RuntimeBlockStateRegistry::getInstance()->isRegistered($id)) {
-			throw new InvalidArgumentException("Block with ID " . $id . " is already registered");
-		}
 		RuntimeBlockStateRegistry::getInstance()->register($block);
 		CustomiesItemFactory::getInstance()->registerBlockItem($identifier, $block);
-		$this->stringIdToTypedIds[$identifier] = $id;
+		$this->customBlocks[$identifier] = $block;
 
 		$propertiesTag = CompoundTag::create();
 		$components = CompoundTag::create()
@@ -171,5 +168,12 @@ final class CustomiesBlockFactory {
 
 		$this->blockPaletteEntries[] = new BlockPaletteEntry($identifier, new CacheableNbt($propertiesTag));
 		$this->blockFuncs[$identifier] = [$blockFunc, $objectToState, $stateToObject];
+	}
+
+	/**
+	 * Returns the next available custom block id
+	 */
+	private function getNextAvailableId(string $identifier): int {
+		return Cache::getInstance()->getNextAvailableBlockID($identifier);
 	}
 }
