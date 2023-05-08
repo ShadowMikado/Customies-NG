@@ -15,6 +15,7 @@ use customiesdevs\customies\util\NBT;
 use InvalidArgumentException;
 use pocketmine\block\Block;
 use pocketmine\block\RuntimeBlockStateRegistry;
+use pocketmine\data\bedrock\block\BlockStateData;
 use pocketmine\data\bedrock\block\convert\BlockStateReader;
 use pocketmine\data\bedrock\block\convert\BlockStateWriter;
 use pocketmine\inventory\CreativeInventory;
@@ -134,8 +135,8 @@ final class CustomiesBlockFactory {
 					$states->setTag($blockPropertyNames[$i], NBT::getTagType($value));
 				}
 				$blockState = CompoundTag::create()
-					->setString("name", $identifier)
-					->setTag("states", $states);
+					->setString(BlockStateData::TAG_NAME, $identifier)
+					->setTag(BlockStateData::TAG_STATES, $states);
 				BlockPalette::getInstance()->insertState($blockState, $meta);
 			}
 			GlobalBlockStateHandlers::getSerializer()->map($block, $objectToState ?? throw new InvalidArgumentException("Serializer for " . get_class($block) . " cannot be null"));
@@ -143,8 +144,8 @@ final class CustomiesBlockFactory {
 		} else {
 			// If a block does not contain any permutations we can just insert the one state.
 			$blockState = CompoundTag::create()
-				->setString("name", $identifier)
-				->setTag("states", CompoundTag::create());
+				->setString(BlockStateData::TAG_NAME, $identifier)
+				->setTag(BlockStateData::TAG_STATES, CompoundTag::create());
 			BlockPalette::getInstance()->insertState($blockState);
 			GlobalBlockStateHandlers::getSerializer()->map($block, $objectToState ??= static fn() => new BlockStateWriter($identifier));
 			GlobalBlockStateHandlers::getDeserializer()->map($identifier, $stateToObject ??= static fn(BlockStateReader $in) => $block);
