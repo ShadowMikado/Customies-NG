@@ -4,12 +4,13 @@ declare(strict_types=1);
 namespace customiesdevs\customies\block;
 
 use pocketmine\data\bedrock\block\BlockStateData;
+use pocketmine\data\bedrock\block\BlockTypeNames;
 use pocketmine\nbt\tag\CompoundTag;
-use pocketmine\network\mcpe\convert\BlockStateDictionary;
 use pocketmine\network\mcpe\convert\BlockStateDictionaryEntry;
 use pocketmine\network\mcpe\convert\BlockTranslator;
 use pocketmine\network\mcpe\convert\TypeConverter;
 use pocketmine\network\mcpe\protocol\ProtocolInfo;
+use pocketmine\utils\AssumptionFailedError;
 use pocketmine\utils\SingletonTrait;
 use ReflectionProperty;
 use RuntimeException;
@@ -28,28 +29,29 @@ final class BlockPalette {
 	/** @var BlockStateDictionaryEntry[] */
 	private array $customStates = [];
 
-	/** @var BlockStateDictionary[] */
-	private array $dictionaries;
+	/** @var BlockTranslator[] */
+	private array $translator;
 	/** @var ReflectionProperty[] */
 	private array $bedrockKnownStates;
 	/** @var ReflectionProperty[] */
 	private array $stateDataToStateIdLookup;
 	/** @var ReflectionProperty[] */
 	private array $idMetaToStateIdLookupCache;
+	/** @var ReflectionProperty[] */
+	private array $fallbackStateId;
 
 	public function __construct() {
 		foreach(method_exists(BlockTranslator::class, "getAll") ? BlockTranslator::getAll(true) : [ProtocolInfo::CURRENT_PROTOCOL => TypeConverter::getInstance()->getBlockTranslator()] as $protocolId => $instance){
 			if(isset($this->states[$protocolId])){
 				continue;
 			}
-			$this->dictionaries[$protocolId] = $dictionary = $instance->getBlockStateDictionary();
+			$this->translator[$protocolId] = $instance;
+			$dictionary = $instance->getBlockStateDictionary();
 			$this->states[$protocolId] = $dictionary->getStates();
-			$this->bedrockKnownStates[$protocolId] = $bedrockKnownStates = new ReflectionProperty($dictionary, "states");
-			$bedrockKnownStates->setAccessible(true);
-			$this->stateDataToStateIdLookup[$protocolId] = $stateDataToStateIdLookup = new ReflectionProperty($dictionary, "stateDataToStateIdLookup");
-			$stateDataToStateIdLookup->setAccessible(true);
-			$this->idMetaToStateIdLookupCache[$protocolId] = $idMetaToStateIdLookupCache = new ReflectionProperty($dictionary, "idMetaToStateIdLookupCache");
-			$idMetaToStateIdLookupCache->setAccessible(true);
+			($this->bedrockKnownStates[$protocolId] = new ReflectionProperty($dictionary, "states"))->setAccessible(true);
+			($this->stateDataToStateIdLookup[$protocolId] = new ReflectionProperty($dictionary, "stateDataToStateIdLookup"))->setAccessible(true);
+			($this->idMetaToStateIdLookupCache[$protocolId] = new ReflectionProperty($dictionary, "idMetaToStateIdLookupCache"))->setAccessible(true);
+			($this->fallbackStateId[$protocolId] = new ReflectionProperty($instance, "fallbackStateId"))->setAccessible(true);
 		}
 	}
 
@@ -71,10 +73,13 @@ final class BlockPalette {
 	 * Inserts the provided state in to the correct position of the palette.
 	 */
 	public function insertState(CompoundTag $state, int $meta = 0): void {
-		if($state->getCompoundTag(BlockStateData::TAG_STATES) === null) {
+		if(($name = $state->getString(BlockStateData::TAG_NAME, "")) === ""){
+			throw new RuntimeException("Block state must contain a StringTag called 'name'");
+		}
+		if(($properties = $state->getCompoundTag(BlockStateData::TAG_STATES)) === null) {
 			throw new RuntimeException("Block state must contain a CompoundTag called 'states'");
 		}
-		$this->sortWith($entry = new BlockStateDictionaryEntry($state->getString(BlockStateData::TAG_NAME), $state->getCompoundTag(BlockStateData::TAG_STATES)->getValue(), $meta));
+		$this->sortWith($entry = new BlockStateDictionaryEntry($name, $properties->getValue(), $meta));
 		$this->customStates[] = $entry;
 	}
 
@@ -112,9 +117,13 @@ final class BlockPalette {
 				}
 			}
 			$this->states[$protocol] = $sortedStates;
-			$this->bedrockKnownStates[$protocol]->setValue($this->dictionaries[$protocol], $sortedStates);
-			$this->stateDataToStateIdLookup[$protocol]->setValue($this->dictionaries[$protocol], $stateDataToStateIdLookup);
-			$this->idMetaToStateIdLookupCache[$protocol]->setValue($this->dictionaries[$protocol], null);
+			$dictionary = $this->translator[$protocol]->getBlockStateDictionary();
+			$this->bedrockKnownStates[$protocol]->setValue($dictionary, $sortedStates);
+			$this->stateDataToStateIdLookup[$protocol]->setValue($dictionary, $stateDataToStateIdLookup);
+			$this->idMetaToStateIdLookupCache[$protocol]->setValue($dictionary, null);
+			$this->fallbackStateId[$protocol]->setValue($this->translator[$protocol], $stateDataToStateIdLookup[BlockTypeNames::INFO_UPDATE] ??
+				throw new AssumptionFailedError(BlockTypeNames::INFO_UPDATE . " should always exist")
+			);
 		}
 	}
 }
