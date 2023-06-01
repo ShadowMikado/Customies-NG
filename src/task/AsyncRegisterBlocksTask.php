@@ -5,24 +5,24 @@ namespace customiesdevs\customies\task;
 
 use customiesdevs\customies\block\CustomiesBlockFactory;
 use customiesdevs\customies\util\Cache;
+use pmmp\thread\ThreadSafeArray;
 use pocketmine\block\Block;
 use pocketmine\scheduler\AsyncTask;
-use ThreadedArray;
 
 final class AsyncRegisterBlocksTask extends AsyncTask {
 
-	private ThreadedArray $blockFuncs;
-	private ThreadedArray $objectToState;
-	private ThreadedArray $stateToObject;
+	private ThreadSafeArray $blockFuncs;
+	private ThreadSafeArray $objectToState;
+	private ThreadSafeArray $stateToObject;
 
 	/**
 	 * @param Closure[] $blockFuncs
 	 * @phpstan-param array<string, Closure(int): Block> $blockFuncs
 	 */
 	public function __construct(private string $cachePath, array $blockFuncs) {
-		$this->blockFuncs = new ThreadedArray();
-		$this->objectToState = new ThreadedArray();
-		$this->stateToObject = new ThreadedArray();
+		$this->blockFuncs = new ThreadSafeArray();
+		$this->objectToState = new ThreadSafeArray();
+		$this->stateToObject = new ThreadSafeArray();
 
 		foreach($blockFuncs as $identifier => [$blockFunc, $objectToState, $stateToObject]){
 			$this->blockFuncs[$identifier] = $blockFunc;

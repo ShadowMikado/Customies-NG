@@ -108,13 +108,11 @@ final class CustomiesItemFactory {
 		$reflection = new ReflectionClass($dictionary);
 
 		$reflectionProperty = $reflection->getProperty("intToStringIdMap");
-		$reflectionProperty->setAccessible(true);
 		/** @var string[] $value */
 		$value = $reflectionProperty->getValue($dictionary);
 		$reflectionProperty->setValue($dictionary, $value + [$id => $stringId]);
 
 		$reflectionProperty = $reflection->getProperty("stringToIntMap");
-		$reflectionProperty->setAccessible(true);
 		/** @var int[] $value */
 		$value = $reflectionProperty->getValue($dictionary);
 		$reflectionProperty->setValue($dictionary, $value + [$stringId => $id]);

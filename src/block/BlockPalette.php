@@ -48,10 +48,10 @@ final class BlockPalette {
 			$this->translator[$protocolId] = $instance;
 			$dictionary = $instance->getBlockStateDictionary();
 			$this->states[$protocolId] = $dictionary->getStates();
-			($this->bedrockKnownStates[$protocolId] = new ReflectionProperty($dictionary, "states"))->setAccessible(true);
-			($this->stateDataToStateIdLookup[$protocolId] = new ReflectionProperty($dictionary, "stateDataToStateIdLookup"))->setAccessible(true);
-			($this->idMetaToStateIdLookupCache[$protocolId] = new ReflectionProperty($dictionary, "idMetaToStateIdLookupCache"))->setAccessible(true);
-			($this->fallbackStateId[$protocolId] = new ReflectionProperty($instance, "fallbackStateId"))->setAccessible(true);
+			$this->bedrockKnownStates[$protocolId] = new ReflectionProperty($dictionary, "states");
+			$this->stateDataToStateIdLookup[$protocolId] = new ReflectionProperty($dictionary, "stateDataToStateIdLookup");
+			$this->idMetaToStateIdLookupCache[$protocolId] = new ReflectionProperty($dictionary, "idMetaToStateIdLookupCache");
+			$this->fallbackStateId[$protocolId] = new ReflectionProperty($instance, "fallbackStateId");
 		}
 	}
 
