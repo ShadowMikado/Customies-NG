@@ -35,7 +35,7 @@ final class CustomiesBlockFactory {
 
 	/**
 	 * @var Closure[]
-	 * @phpstan-var array<string, Closure(int): Block>
+	 * @phpstan-var array<string, array{(Closure(int): Block), (Closure(BlockStateWriter): Block), (Closure(Block): BlockStateReader)}>
 	 */
 	private array $blockFuncs = [];
 	/** @var BlockPaletteEntry[] */
@@ -62,7 +62,7 @@ final class CustomiesBlockFactory {
 	public function get(string $identifier): Block {
 		return clone (
 			$this->customBlocks[$identifier] ??
-			throw new InvalidArgumentException("Custom block " . $identifier . " is not registered")
+			throw new InvalidArgumentException("Custom block $identifier is not registered")
 		);
 	}
 
@@ -75,10 +75,13 @@ final class CustomiesBlockFactory {
 	}
 
 	/**
-	 * Register a block to the BlockFactory and all the required mappings.
+	 * Register a block to the BlockFactory and all the required mappings. A custom stateReader and stateWriter can be
+	 * provided to allow for custom block state serialization.
 	 * @phpstan-param (Closure(int): Block) $blockFunc
+	 * @phpstan-param null|(Closure(BlockStateWriter): Block) $serializer
+	 * @phpstan-param null|(Closure(Block): BlockStateReader) $deserializer
 	 */
-	public function registerBlock(Closure $blockFunc, string $identifier, ?Model $model = null, ?CreativeInventoryInfo $creativeInfo = null, ?Closure $objectToState = null, ?Closure $stateToObject = null): void {
+	public function registerBlock(Closure $blockFunc, string $identifier, ?Model $model = null, ?CreativeInventoryInfo $creativeInfo = null, ?Closure $serializer = null, ?Closure $deserializer = null): void {
 		$id = $this->getNextAvailableId($identifier);
 		$block = $blockFunc($id);
 		if(!$block instanceof Block) {
@@ -139,17 +142,29 @@ final class CustomiesBlockFactory {
 					->setTag(BlockStateData::TAG_STATES, $states);
 				BlockPalette::getInstance()->insertState($blockState, $meta);
 			}
-			GlobalBlockStateHandlers::getSerializer()->map($block, $objectToState ?? throw new InvalidArgumentException("Serializer for " . get_class($block) . " cannot be null"));
-			GlobalBlockStateHandlers::getDeserializer()->map($identifier, $stateToObject ?? throw new InvalidArgumentException("Deserializer for " . get_class($block) . " cannot be null"));
+
+			$serializer ??= static function (Permutable $block) use ($identifier, $blockPropertyNames) : BlockStateWriter {
+				$b = BlockStateWriter::create($identifier);
+				$block->serializeState($b);
+				return $b;
+			};
+			$deserializer ??= static function (BlockStateReader $in) use ($block, $identifier, $blockPropertyNames) : Permutable {
+				$b = CustomiesBlockFactory::getInstance()->get($identifier);
+				assert($b instanceof Permutable);
+				$b->deserializeState($in);
+				return $b;
+			};
 		} else {
 			// If a block does not contain any permutations we can just insert the one state.
 			$blockState = CompoundTag::create()
 				->setString(BlockStateData::TAG_NAME, $identifier)
 				->setTag(BlockStateData::TAG_STATES, CompoundTag::create());
 			BlockPalette::getInstance()->insertState($blockState);
-			GlobalBlockStateHandlers::getSerializer()->map($block, $objectToState ??= static fn() => new BlockStateWriter($identifier));
-			GlobalBlockStateHandlers::getDeserializer()->map($identifier, $stateToObject ??= static fn(BlockStateReader $in) => $block);
+			$serializer ??= static fn() => new BlockStateWriter($identifier);
+			$deserializer ??= static fn(BlockStateReader $in) => $block;
 		}
+		GlobalBlockStateHandlers::getSerializer()->map($block, $serializer);
+		GlobalBlockStateHandlers::getDeserializer()->map($identifier, $deserializer);
 
 		$creativeInfo ??= CreativeInventoryInfo::DEFAULT();
 		$components->setTag("minecraft:creative_category", CompoundTag::create()
@@ -165,10 +180,12 @@ final class CustomiesBlockFactory {
 				->setString("group", $creativeInfo->getGroup() ?? ""))
 			->setInt("molangVersion", 1);
 
-		CreativeInventory::getInstance()->add($block->asItem());
+		if(Cache::getInstance()->isMainThread()){
+			CreativeInventory::getInstance()->add($block->asItem());
+		}
 
 		$this->blockPaletteEntries[] = new BlockPaletteEntry($identifier, new CacheableNbt($propertiesTag));
-		$this->blockFuncs[$identifier] = [$blockFunc, $objectToState, $stateToObject];
+		$this->blockFuncs[$identifier] = [$blockFunc, $serializer, $deserializer];
 	}
 
 	/**

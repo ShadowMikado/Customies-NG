@@ -11,7 +11,6 @@ use pocketmine\item\Item;
 use pocketmine\item\ItemIdentifier;
 use pocketmine\item\ItemTypeIds;
 use pocketmine\item\StringToItemParser;
-use pocketmine\network\mcpe\convert\ItemTranslator;
 use pocketmine\network\mcpe\convert\TypeConverter;
 use pocketmine\network\mcpe\protocol\serializer\ItemTypeDictionary;
 use pocketmine\network\mcpe\protocol\types\CacheableNbt;
@@ -26,9 +25,13 @@ use function array_values;
 final class CustomiesItemFactory {
 	use SingletonTrait;
 
-	/** @var ItemTypeEntry[] */
+	/**
+	 * @var ItemTypeEntry[]
+	 */
 	private array $itemTableEntries = [];
-	/** @var ItemComponentPacketEntry[] */
+	/**
+	 * @var ItemComponentPacketEntry[]
+	 */
 	private array $itemComponentEntries = [];
 
 	/**
@@ -36,7 +39,6 @@ final class CustomiesItemFactory {
 	 */
 	public function get(string $identifier, int $amount = 1): Item {
 		$item = StringToItemParser::getInstance()->parse($identifier);
-
 		if($item === null) {
 			throw new InvalidArgumentException("Custom item " . $identifier . " is not registered");
 		}
@@ -104,18 +106,18 @@ final class CustomiesItemFactory {
 		}
 	}
 
-	private function registerCustomItemMappingToDictionary(ItemTypeDictionary $dictionary, string $stringId, int $id): void {
+	private function registerCustomItemMappingToDictionary(ItemTypeDictionary $dictionary, string $identifier, int $itemId): void {
 		$reflection = new ReflectionClass($dictionary);
 
-		$reflectionProperty = $reflection->getProperty("intToStringIdMap");
+		$intToString = $reflection->getProperty("intToStringIdMap");
 		/** @var string[] $value */
-		$value = $reflectionProperty->getValue($dictionary);
-		$reflectionProperty->setValue($dictionary, $value + [$id => $stringId]);
+		$value = $intToString->getValue($dictionary);
+		$intToString->setValue($dictionary, $value + [$itemId => $identifier]);
 
-		$reflectionProperty = $reflection->getProperty("stringToIntMap");
+		$stringToInt = $reflection->getProperty("stringToIntMap");
 		/** @var int[] $value */
-		$value = $reflectionProperty->getValue($dictionary);
-		$reflectionProperty->setValue($dictionary, $value + [$stringId => $id]);
+		$value = $stringToInt->getValue($dictionary);
+		$stringToInt->setValue($dictionary, $value + [$identifier => $itemId]);
 	}
 
 	/**
@@ -125,9 +127,7 @@ final class CustomiesItemFactory {
 	public function registerBlockItem(string $identifier, Block $block): void {
 		$itemId = $block->getIdInfo()->getBlockTypeId();
 		$this->registerCustomItemMapping($identifier, $itemId);
-
 		StringToItemParser::getInstance()->registerBlock($identifier, fn() => clone $block);
-
 		$this->itemTableEntries[] = new ItemTypeEntry($identifier, $itemId, false);
 	}
 }

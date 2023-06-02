@@ -43,4 +43,8 @@ final class Cache {
 		$data = ["blocks" => $this->blockCache];
 		Filesystem::safeFilePutContents($this->file, gzcompress(igbinary_serialize($data)));
 	}
+
+	public function isMainThread() : bool{
+		return $this->mainThread;
+	}
 }

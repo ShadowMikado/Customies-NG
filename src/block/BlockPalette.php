@@ -73,7 +73,7 @@ final class BlockPalette {
 	 * Inserts the provided state in to the correct position of the palette.
 	 */
 	public function insertState(CompoundTag $state, int $meta = 0): void {
-		if(($name = $state->getString(BlockStateData::TAG_NAME, "")) === ""){
+		if(($name = $state->getString(BlockStateData::TAG_NAME, "")) === "") {
 			throw new RuntimeException("Block state must contain a StringTag called 'name'");
 		}
 		if(($properties = $state->getCompoundTag(BlockStateData::TAG_STATES)) === null) {
