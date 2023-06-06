@@ -11,6 +11,7 @@ use pocketmine\item\Item;
 use pocketmine\item\ItemIdentifier;
 use pocketmine\item\ItemTypeIds;
 use pocketmine\item\StringToItemParser;
+use pocketmine\network\mcpe\convert\ItemTranslator;
 use pocketmine\network\mcpe\convert\TypeConverter;
 use pocketmine\network\mcpe\protocol\serializer\ItemTypeDictionary;
 use pocketmine\network\mcpe\protocol\types\CacheableNbt;

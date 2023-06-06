@@ -28,7 +28,6 @@ use pocketmine\utils\SingletonTrait;
 use pocketmine\world\format\io\GlobalBlockStateHandlers;
 use function array_map;
 use function array_reverse;
-use function get_class;
 
 final class CustomiesBlockFactory {
 	use SingletonTrait;
