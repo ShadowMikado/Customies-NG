@@ -15,6 +15,7 @@ use pocketmine\utils\SingletonTrait;
 use ReflectionProperty;
 use RuntimeException;
 use function array_keys;
+use function array_merge;
 use function count;
 use function hash;
 use function method_exists;
@@ -28,6 +29,8 @@ final class BlockPalette {
 	private array $states;
 	/** @var BlockStateDictionaryEntry[] */
 	private array $customStates = [];
+	/** @var BlockStateDictionaryEntry[][] */
+	private array $pendingInsert = [];
 
 	/** @var BlockTranslator[] */
 	private array $translator;
@@ -41,17 +44,17 @@ final class BlockPalette {
 	private array $fallbackStateId;
 
 	public function __construct() {
-		foreach(method_exists(BlockTranslator::class, "getAll") ? BlockTranslator::getAll(true) : [ProtocolInfo::CURRENT_PROTOCOL => TypeConverter::getInstance()->getBlockTranslator()] as $protocolId => $instance){
+		foreach(method_exists(TypeConverter::class, "getAll") ? TypeConverter::getAll(true) : [ProtocolInfo::CURRENT_PROTOCOL => TypeConverter::getInstance()] as $protocolId => $typeConverter){
 			if(isset($this->states[$protocolId])){
 				continue;
 			}
-			$this->translator[$protocolId] = $instance;
-			$dictionary = $instance->getBlockStateDictionary();
+			$this->translator[$protocolId] = $blockTranslator = $typeConverter->getBlockTranslator();
+			$dictionary = $blockTranslator->getBlockStateDictionary();
 			$this->states[$protocolId] = $dictionary->getStates();
 			$this->bedrockKnownStates[$protocolId] = new ReflectionProperty($dictionary, "states");
 			$this->stateDataToStateIdLookup[$protocolId] = new ReflectionProperty($dictionary, "stateDataToStateIdLookup");
 			$this->idMetaToStateIdLookupCache[$protocolId] = new ReflectionProperty($dictionary, "idMetaToStateIdLookupCache");
-			$this->fallbackStateId[$protocolId] = new ReflectionProperty($instance, "fallbackStateId");
+			$this->fallbackStateId[$protocolId] = new ReflectionProperty($blockTranslator, "fallbackStateId");
 		}
 	}
 
@@ -79,14 +82,14 @@ final class BlockPalette {
 		if(($properties = $state->getCompoundTag(BlockStateData::TAG_STATES)) === null) {
 			throw new RuntimeException("Block state must contain a CompoundTag called 'states'");
 		}
-		$this->sortWith($entry = new BlockStateDictionaryEntry($name, $properties->getValue(), $meta));
+		$this->pendingInsert[$name][] = $entry = new BlockStateDictionaryEntry($name, $properties->getValue(), $meta);
 		$this->customStates[] = $entry;
 	}
 
 	/**
 	 * Sorts the palette's block states in the correct order, also adding the provided state to the array.
 	 */
-	private function sortWith(BlockStateDictionaryEntry $newState): void {
+	public function sortStates(): void {
 		foreach($this->states as $protocol => $protocolStates){
 			// To sort the block palette we first have to split the palette up in to groups of states. We only want to sort
 			// using the name of the block, and keeping the order of the existing states.
@@ -96,7 +99,7 @@ final class BlockPalette {
 				$states[$state->getStateName()][] = $state;
 			}
 			// Append the new state we are sorting with at the end to preserve existing order.
-			$states[$newState->getStateName()][] = $newState;
+			$states = array_merge($states, $this->pendingInsert);
 
 			$names = array_keys($states);
 			// As of 1.18.30, blocks are sorted using a fnv164 hash of their names.
@@ -125,5 +128,6 @@ final class BlockPalette {
 				throw new AssumptionFailedError(BlockTypeNames::INFO_UPDATE . " should always exist")
 			);
 		}
+		$this->pendingInsert = [];
 	}
 }

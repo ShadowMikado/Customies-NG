@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace customiesdevs\customies\task;
 
+use customiesdevs\customies\block\BlockPalette;
 use customiesdevs\customies\block\CustomiesBlockFactory;
 use customiesdevs\customies\util\Cache;
 use pmmp\thread\ThreadSafeArray;
@@ -40,5 +41,6 @@ final class AsyncRegisterBlocksTask extends AsyncTask {
 			// the main thread.
 			CustomiesBlockFactory::getInstance()->registerBlock($blockFunc, $identifier, serializer: $this->serializer[$identifier], deserializer: $this->deserializer[$identifier]);
 		}
+		BlockPalette::getInstance()->sortStates();
 	}
 }

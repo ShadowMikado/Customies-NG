@@ -9,6 +9,7 @@ use pocketmine\event\Listener;
 use pocketmine\event\server\DataPacketSendEvent;
 use pocketmine\network\mcpe\protocol\BiomeDefinitionListPacket;
 use pocketmine\network\mcpe\protocol\ItemComponentPacket;
+use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use pocketmine\network\mcpe\protocol\ResourcePackStackPacket;
 use pocketmine\network\mcpe\protocol\StartGamePacket;
 use pocketmine\network\mcpe\protocol\types\BlockPaletteEntry;
@@ -16,6 +17,7 @@ use pocketmine\network\mcpe\protocol\types\Experiments;
 use pocketmine\network\mcpe\protocol\types\ItemTypeEntry;
 use function array_merge;
 use function count;
+use function method_exists;
 
 final class CustomiesListener implements Listener {
 
@@ -47,15 +49,21 @@ final class CustomiesListener implements Listener {
 					$session->sendDataPacket($this->cachedItemComponentPacket);
 				}
 			} elseif($packet instanceof StartGamePacket) {
+				$protocolId = ProtocolInfo::CURRENT_PROTOCOL;
+				foreach($event->getTargets() as $session){
+					if(method_exists($session, "getProtocolId")) {
+						$protocolId = $session->getProtocolId();
+					}
+					break;
+				}
 				if(count($this->cachedItemTable) === 0) {
 					// Wait for the data to be needed before it is actually cached. Allows for all blocks and items to be
 					// registered before they are cached for the rest of the runtime.
 					$this->cachedItemTable = CustomiesItemFactory::getInstance()->getItemTableEntries();
-					$this->cachedBlockPalette = CustomiesBlockFactory::getInstance()->getBlockPaletteEntries();
 				}
 				$packet->levelSettings->experiments = $this->experiments;
 				$packet->itemTable = array_merge($packet->itemTable, $this->cachedItemTable);
-				$packet->blockPalette = $this->cachedBlockPalette;
+				$packet->blockPalette = $this->cachedBlockPalette[$protocolId] ??= CustomiesBlockFactory::getInstance()->getBlockPaletteEntries($protocolId);
 			} elseif($packet instanceof ResourcePackStackPacket) {
 				$packet->experiments = $this->experiments;
 			}

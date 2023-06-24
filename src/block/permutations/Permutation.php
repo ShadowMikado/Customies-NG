@@ -5,10 +5,13 @@ namespace customiesdevs\customies\block\permutations;
 
 use customiesdevs\customies\util\NBT;
 use pocketmine\nbt\tag\CompoundTag;
+use function array_keys;
 
 final class Permutation {
 
 	private CompoundTag $components;
+	/** @var array<int, array<string, array{string, mixed}>> */
+	private array $downgradeComponents = [];
 
 	public function __construct(private readonly string $condition) {
 		$this->components = CompoundTag::create();
@@ -22,12 +25,31 @@ final class Permutation {
 		return $this;
 	}
 
+	public function downgradeComponent(int $protocolId, string $replaced, string $component, mixed $value) : self {
+		$this->downgradeComponents[$protocolId][$replaced] = [$component, $value];
+		return $this;
+	}
+
+	public function getProtocolIds() : array{
+		return array_keys($this->downgradeComponents);
+	}
+
 	/**
 	 * Returns the permutation in the correct NBT format supported by the client.
 	 */
-	public function toNBT(): CompoundTag {
+	public function toNBT(int $protocolId): CompoundTag {
+		$components = clone $this->components;
+		foreach($this->downgradeComponents as $componentProtocol => $downgrade){
+			if($protocolId > $componentProtocol){
+				continue;
+			}
+			foreach($downgrade as $replaced => [$component, $value]){
+				$components->removeTag($replaced);
+				$components->setTag($component, NBT::getTagType($value));
+			}
+		}
 		return CompoundTag::create()
 			->setString("condition", $this->condition)
-			->setTag("components", $this->components);
+			->setTag("components", $components);
 	}
 }

@@ -21,13 +21,16 @@ use pocketmine\data\bedrock\block\convert\BlockStateWriter;
 use pocketmine\inventory\CreativeInventory;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\ListTag;
+use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use pocketmine\network\mcpe\protocol\types\BlockPaletteEntry;
 use pocketmine\network\mcpe\protocol\types\CacheableNbt;
 use pocketmine\Server;
 use pocketmine\utils\SingletonTrait;
 use pocketmine\world\format\io\GlobalBlockStateHandlers;
 use function array_map;
+use function array_merge;
 use function array_reverse;
+use function ksort;
 
 final class CustomiesBlockFactory {
 	use SingletonTrait;
@@ -37,7 +40,7 @@ final class CustomiesBlockFactory {
 	 * @phpstan-var array<string, array{(Closure(int): Block), (Closure(BlockStateWriter): Block), (Closure(Block): BlockStateReader)}>
 	 */
 	private array $blockFuncs = [];
-	/** @var BlockPaletteEntry[] */
+	/** @var BlockPaletteEntry[][] */
 	private array $blockPaletteEntries = [];
 	/** @var array<string, Block> */
 	private array $customBlocks = [];
@@ -69,8 +72,15 @@ final class CustomiesBlockFactory {
 	 * Returns all the block palette entries that need to be sent to the client.
 	 * @return BlockPaletteEntry[]
 	 */
-	public function getBlockPaletteEntries(): array {
-		return $this->blockPaletteEntries;
+	public function getBlockPaletteEntries(int $protocolId): array {
+		ksort($this->blockPaletteEntries);
+		$blockPaletteEntries = [];
+		foreach($this->blockPaletteEntries as $paletteProtocol => $entries){
+			if($protocolId <= $paletteProtocol){
+				$blockPaletteEntries = array_merge($blockPaletteEntries, $entries);
+			}
+		}
+		return $blockPaletteEntries;
 	}
 
 	/**
@@ -91,7 +101,7 @@ final class CustomiesBlockFactory {
 		CustomiesItemFactory::getInstance()->registerBlockItem($identifier, $block);
 		$this->customBlocks[$identifier] = $block;
 
-		$propertiesTag = CompoundTag::create();
+		$propertiesTags[ProtocolInfo::CURRENT_PROTOCOL] = CompoundTag::create();
 		$components = CompoundTag::create()
 			->setTag("minecraft:light_emission", CompoundTag::create()
 				->setByte("emission", $block->getLightLevel()))
@@ -113,6 +123,7 @@ final class CustomiesBlockFactory {
 			}
 		}
 
+		$propertiesProtocol = [ProtocolInfo::CURRENT_PROTOCOL];
 		if($block instanceof Permutable) {
 			$blockPropertyNames = $blockPropertyValues = $blockProperties = [];
 			foreach($block->getBlockProperties() as $blockProperty){
@@ -120,14 +131,17 @@ final class CustomiesBlockFactory {
 				$blockPropertyValues[] = $blockProperty->getValues();
 				$blockProperties[] = $blockProperty->toNBT();
 			}
-			$permutations = array_map(static fn(Permutation $permutation) => $permutation->toNBT(), $block->getPermutations());
 
 			// The 'minecraft:on_player_placing' component is required for the client to predict block placement, making
 			// it a smoother experience for the end-user.
 			$components->setTag("minecraft:on_player_placing", CompoundTag::create());
-			$propertiesTag
-				->setTag("permutations", new ListTag($permutations))
-				->setTag("properties", new ListTag(array_reverse($blockProperties))); // fix client-side order
+
+			foreach($propertiesProtocol = array_merge([ProtocolInfo::CURRENT_PROTOCOL], ...array_map(static fn(Permutation $permutation) => $permutation->getProtocolIds(), $block->getPermutations())) as $protocolId){
+				$permutations = array_map(static fn(Permutation $permutation) => $permutation->toNBT($protocolId), $block->getPermutations());
+				($propertiesTags[$protocolId] ??= CompoundTag::create())
+					->setTag("permutations", new ListTag($permutations))
+					->setTag("properties", new ListTag(array_reverse($blockProperties))); // fix client-side order
+			}
 
 			foreach(Permutations::getCartesianProduct($blockPropertyValues) as $meta => $permutations){
 				// We need to insert states for every possible permutation to allow for all blocks to be used and to
@@ -169,21 +183,25 @@ final class CustomiesBlockFactory {
 		$components->setTag("minecraft:creative_category", CompoundTag::create()
 			->setString("category", $creativeInfo->getCategory())
 			->setString("group", $creativeInfo->getGroup()));
-		$propertiesTag
-			->setTag("components",
-				$components->setTag("minecraft:creative_category", CompoundTag::create()
-					->setString("category", $creativeInfo->getCategory())
-					->setString("group", $creativeInfo->getGroup())))
-			->setTag("menu_category", CompoundTag::create()
-				->setString("category", $creativeInfo->getCategory() ?? "")
-				->setString("group", $creativeInfo->getGroup() ?? ""))
-			->setInt("molangVersion", 1);
+		foreach($propertiesProtocol as $protocolId){
+			$propertiesTags[$protocolId]
+				->setTag("components",
+					$components->setTag("minecraft:creative_category", CompoundTag::create()
+						->setString("category", $creativeInfo->getCategory())
+						->setString("group", $creativeInfo->getGroup())))
+				->setTag("menu_category", CompoundTag::create()
+					->setString("category", $creativeInfo->getCategory() ?? "")
+					->setString("group", $creativeInfo->getGroup() ?? ""))
+				->setInt("molangVersion", 1);
+		}
 
 		if(Cache::getInstance()->isMainThread()){
 			CreativeInventory::getInstance()->add($block->asItem());
 		}
 
-		$this->blockPaletteEntries[] = new BlockPaletteEntry($identifier, new CacheableNbt($propertiesTag));
+		foreach($propertiesTags as $protocolId => $propertiesTag){
+			$this->blockPaletteEntries[$protocolId][] = new BlockPaletteEntry($identifier, new CacheableNbt($propertiesTag));
+		}
 		$this->blockFuncs[$identifier] = [$blockFunc, $serializer, $deserializer];
 	}
 
