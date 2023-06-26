@@ -82,7 +82,7 @@ final class BlockPalette {
 		if(($properties = $state->getCompoundTag(BlockStateData::TAG_STATES)) === null) {
 			throw new RuntimeException("Block state must contain a CompoundTag called 'states'");
 		}
-		$this->pendingInsert[$name][] = $entry = new BlockStateDictionaryEntry($name, $properties->getValue(), $meta);
+		$this->pendingInsert[$name][] = $entry = new BlockStateDictionaryEntry($name, $properties->getValue(), $meta, null);
 		$this->customStates[] = $entry;
 	}
 
