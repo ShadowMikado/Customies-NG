@@ -19,6 +19,7 @@ use function array_merge;
 use function count;
 use function hash;
 use function method_exists;
+use function property_exists;
 use function strcmp;
 use function usort;
 
@@ -96,7 +97,7 @@ final class BlockPalette {
 			/** @var BlockStateDictionaryEntry[][] $states */
 			$states = [];
 			foreach($protocolStates as $state){
-				$states[$state->getStateName()][] = $state;
+				$states[(property_exists($state, "oldBlockStateData") ? (new ReflectionProperty($state, "oldBlockStateData"))->getValue($state)?->getName() : null) ?? $state->getStateName()][] = $state;
 			}
 			// Append the new state we are sorting with at the end to preserve existing order.
 			$states = array_merge($states, $this->pendingInsert);
@@ -112,9 +113,9 @@ final class BlockPalette {
 				foreach($states[$name] as $state){
 					$sortedStates[$stateId] = $state;
 					if(count($states[$name]) === 1){
-						$stateDataToStateIdLookup[$name] = $stateId;
+						$stateDataToStateIdLookup[$state->getStateName()] = $stateId;
 					}else{
-						$stateDataToStateIdLookup[$name][$state->getRawStateProperties()] = $stateId;
+						$stateDataToStateIdLookup[$state->getStateName()][$state->getRawStateProperties()] = $stateId;
 					}
 					$stateId++;
 				}
