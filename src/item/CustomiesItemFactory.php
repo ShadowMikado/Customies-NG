@@ -21,6 +21,7 @@ use pocketmine\utils\SingletonTrait;
 use pocketmine\utils\Utils;
 use pocketmine\world\format\io\GlobalItemDataHandlers;
 use ReflectionClass;
+use function array_merge;
 use function array_values;
 
 final class CustomiesItemFactory {
@@ -113,12 +114,12 @@ final class CustomiesItemFactory {
 		$intToString = $reflection->getProperty("intToStringIdMap");
 		/** @var string[] $value */
 		$value = $intToString->getValue($dictionary);
-		$intToString->setValue($dictionary, $value + [$itemId => $identifier]);
+		$intToString->setValue($dictionary, array_merge($value, [$itemId => $identifier]));
 
 		$stringToInt = $reflection->getProperty("stringToIntMap");
 		/** @var int[] $value */
 		$value = $stringToInt->getValue($dictionary);
-		$stringToInt->setValue($dictionary, $value + [$identifier => $itemId]);
+		$stringToInt->setValue($dictionary, array_merge($value, [$identifier => $itemId]));
 	}
 
 	/**

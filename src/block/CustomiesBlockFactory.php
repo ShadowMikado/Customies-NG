@@ -29,6 +29,7 @@ use pocketmine\world\format\io\GlobalBlockStateHandlers;
 use function array_map;
 use function array_merge;
 use function array_reverse;
+use function defined;
 use function ksort;
 
 final class CustomiesBlockFactory {
@@ -183,10 +184,10 @@ final class CustomiesBlockFactory {
 			->setString("group", $creativeInfo->getGroup()));
 		foreach($propertiesProtocol as $protocolId){
 			$propertiesTags[$protocolId]
-				->setTag("components",
-					$components->setTag("minecraft:creative_category", CompoundTag::create()
-						->setString("category", $creativeInfo->getCategory())
-						->setString("group", $creativeInfo->getGroup())))
+				->setTag("components", defined(ProtocolInfo::class . "::PROTOCOL_1_20_10") && $protocolId >= ProtocolInfo::PROTOCOL_1_20_10 ?
+					$components : (clone $components)->setTag("minecraft:geometry", CompoundTag::create()
+						->setString("value", $components->getCompoundTag("minecraft:geometry")
+							->getString("identifier"))))
 				->setTag("menu_category", CompoundTag::create()
 					->setString("category", $creativeInfo->getCategory() ?? "")
 					->setString("group", $creativeInfo->getGroup() ?? ""))
