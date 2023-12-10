@@ -29,7 +29,6 @@ use pocketmine\world\format\io\GlobalBlockStateHandlers;
 use function array_map;
 use function array_merge;
 use function array_reverse;
-use function defined;
 use function ksort;
 
 final class CustomiesBlockFactory {
@@ -70,10 +69,13 @@ final class CustomiesBlockFactory {
 
 	/**
 	 * Returns all the block palette entries that need to be sent to the client.
-	 * @return BlockPaletteEntry[]
+	 * @return BlockPaletteEntry[]|BlockPaletteEntry[][]
 	 */
-	public function getBlockPaletteEntries(int $protocolId): array {
+	public function getBlockPaletteEntries(?int $protocolId = null): array {
 		ksort($this->blockPaletteEntries);
+		if($protocolId === null){
+			return $this->blockPaletteEntries;
+		}
 		$blockPaletteEntries = [];
 		foreach($this->blockPaletteEntries as $paletteProtocol => $entries){
 			if($protocolId <= $paletteProtocol){
@@ -179,17 +181,17 @@ final class CustomiesBlockFactory {
 			->setString("group", $creativeInfo->getGroup()));
 		foreach($propertiesProtocol as $protocolId){
 			$propertiesTags[$protocolId]
-				->setTag("components", defined(ProtocolInfo::class . "::PROTOCOL_1_20_10") && $protocolId >= ProtocolInfo::PROTOCOL_1_20_10 ?
-					$components : (clone $components)->setTag("minecraft:geometry", CompoundTag::create()
-						->setString("value", $components->getCompoundTag("minecraft:geometry")
-							->getString("identifier"))))
+				->setTag("components", $components)
 				->setTag("menu_category", CompoundTag::create()
 					->setString("category", $creativeInfo->getCategory() ?? "")
 					->setString("group", $creativeInfo->getGroup() ?? ""))
 				->setInt("molangVersion", 1);
 		}
 
-		CreativeInventory::getInstance()->add($block->asItem());
+		try{
+			CreativeInventory::getInstance()->add($block->asItem());
+		}catch(\Error){
+		}
 
 		foreach($propertiesTags as $protocolId => $propertiesTag){
 			$this->blockPaletteEntries[$protocolId][] = new BlockPaletteEntry($identifier, new CacheableNbt($propertiesTag));

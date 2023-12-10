@@ -114,12 +114,14 @@ final class CustomiesItemFactory {
 		$intToString = $reflection->getProperty("intToStringIdMap");
 		/** @var string[] $value */
 		$value = $intToString->getValue($dictionary);
-		$intToString->setValue($dictionary, array_merge($value, [$itemId => $identifier]));
+		$value[$itemId] = $identifier;
+		$intToString->setValue($dictionary, $value);
 
 		$stringToInt = $reflection->getProperty("stringToIntMap");
 		/** @var int[] $value */
 		$value = $stringToInt->getValue($dictionary);
-		$stringToInt->setValue($dictionary, array_merge($value, [$identifier => $itemId]));
+		$value[$identifier] = $itemId;
+		$stringToInt->setValue($dictionary, $value);
 	}
 
 	/**
