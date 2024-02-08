@@ -91,6 +91,7 @@ final class BlockPalette {
 	 * Sorts the palette's block states in the correct order, also adding the provided state to the array.
 	 */
 	public function sortStates(): void {
+		CustomiesBlockFactory::getInstance()->sort();
 		foreach($this->states as $protocol => $protocolStates){
 			// To sort the block palette we first have to split the palette up in to groups of states. We only want to sort
 			// using the name of the block, and keeping the order of the existing states.
