@@ -24,6 +24,7 @@ use customiesdevs\customies\item\component\UseAnimationComponent;
 use customiesdevs\customies\item\component\UseDurationComponent;
 use customiesdevs\customies\item\component\WearableComponent;
 use customiesdevs\customies\util\NBT;
+use pocketmine\crafting\ShapedRecipe;
 use pocketmine\entity\Consumable;
 use pocketmine\inventory\ArmorInventory;
 use pocketmine\item\Armor;
@@ -45,6 +46,7 @@ trait ItemComponentsTrait {
 	public function hasComponent(string $name): bool {
 		return isset($this->components[$name]);
 	}
+
 
 	public function getComponents(): CompoundTag {
 		$components = CompoundTag::create();
@@ -85,7 +87,7 @@ trait ItemComponentsTrait {
 				default => WearableComponent::SLOT_ARMOR
 			};
 			$this->addComponent(new ArmorComponent($this->getDefensePoints()));
-			$this->addComponent(new WearableComponent($slot));
+			$this->addComponent(new WearableComponent($slot, $this->getDefensePoints()));
 		}
 
 		if($this instanceof Consumable) {
@@ -148,4 +150,6 @@ trait ItemComponentsTrait {
 	protected function setUseDuration(int $ticks): void {
 		$this->addComponent(new UseDurationComponent($ticks));
 	}
+
+
 }

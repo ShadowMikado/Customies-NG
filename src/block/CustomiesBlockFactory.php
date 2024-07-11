@@ -196,7 +196,7 @@ final class CustomiesBlockFactory {
 		}
 
 		try{
-			CreativeInventory::getInstance()->add($block->asItem());
+			CreativeInventory::getInstance()->add($block->asItem()->setCustomName("§r§f".$block->getName()));
 		}catch(\Error){
 		}
 

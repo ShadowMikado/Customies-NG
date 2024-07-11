@@ -47,6 +47,7 @@ trait RotatableTrait {
 					->setInt("RX", 0)
 					->setInt("RY", 2)
 					->setInt("RZ", 0)
+					->setInt("RZ", 0)
 					->setFloat("SX", 1.0)
 					->setFloat("SY", 1.0)
 					->setFloat("SZ", 1.0)

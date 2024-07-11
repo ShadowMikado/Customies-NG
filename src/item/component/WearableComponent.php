@@ -22,8 +22,11 @@ final class WearableComponent implements ItemComponent {
 
 	private string $slot;
 
-	public function __construct(string $slot) {
+    private int $protection = 0;
+
+	public function __construct(string $slot, int $protection) {
 		$this->slot = $slot;
+        $this->protection = $protection;
 	}
 
 	public function getName(): string {
@@ -32,6 +35,7 @@ final class WearableComponent implements ItemComponent {
 
 	public function getValue(): array {
 		return [
+            "protection" => $this->protection,
 			"slot" => $this->slot
 		];
 	}

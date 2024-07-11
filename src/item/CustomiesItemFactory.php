@@ -3,8 +3,10 @@ declare(strict_types=1);
 
 namespace customiesdevs\customies\item;
 
+use customiesdevs\customies\Customies;
 use InvalidArgumentException;
 use pocketmine\block\Block;
+use pocketmine\crafting\CraftingManager;
 use pocketmine\data\bedrock\item\BlockItemIdMap;
 use pocketmine\data\bedrock\item\SavedItemData;
 use pocketmine\inventory\CreativeInventory;
@@ -17,6 +19,7 @@ use pocketmine\network\mcpe\protocol\serializer\ItemTypeDictionary;
 use pocketmine\network\mcpe\protocol\types\CacheableNbt;
 use pocketmine\network\mcpe\protocol\types\ItemComponentPacketEntry;
 use pocketmine\network\mcpe\protocol\types\ItemTypeEntry;
+use pocketmine\Server;
 use pocketmine\utils\SingletonTrait;
 use pocketmine\utils\Utils;
 use pocketmine\world\format\io\GlobalItemDataHandlers;
@@ -35,6 +38,11 @@ final class CustomiesItemFactory {
 	 * @var ItemComponentPacketEntry[]
 	 */
 	private array $itemComponentEntries = [];
+
+    /**
+     * @var Item[]
+     */
+    private array $all = [];
 
 	/**
 	 * Get a custom item from its identifier. An exception will be thrown if the item is not registered.
@@ -81,6 +89,7 @@ final class CustomiesItemFactory {
 		GlobalItemDataHandlers::getSerializer()->map($item, fn() => new SavedItemData($identifier));
 
 		StringToItemParser::getInstance()->register($identifier, fn() => clone $item);
+        Server::getInstance()->getLogger()->info("Registered $identifier");
 
 		if(($componentBased = $item instanceof ItemComponents)) {
 			$this->itemComponentEntries[$identifier] = new ItemComponentPacketEntry($identifier,
@@ -92,7 +101,13 @@ final class CustomiesItemFactory {
 		}
 
 		$this->itemTableEntries[$identifier] = new ItemTypeEntry($identifier, $itemId, $componentBased);
+        $this->all[] = $item;
+
 		CreativeInventory::getInstance()->add($item);
+        if ($item->getCraft() !== null) {
+            Server::getInstance()->getCraftingManager()->registerShapedRecipe($item->getCraft());
+        }
+
 	}
 
 	/**
@@ -142,4 +157,9 @@ final class CustomiesItemFactory {
 		$value = $itemToBlockId->getValue($blockItemIdMap);
 		$itemToBlockId->setValue($blockItemIdMap, $value + [$identifier => $identifier]);
 	}
+
+    public function getAll(): array
+    {
+        return $this->all;
+    }
 }
